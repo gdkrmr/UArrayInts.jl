@@ -1,0 +1,4 @@
+name = "UArrayInts"
+uuid = "fbc74910-7790-11e8-3de0-4ffb37af708f"
+authors = ["Guido Kraemer <gdkrmr@users.noreply.github.com>"]
+version = "0.1.0"
