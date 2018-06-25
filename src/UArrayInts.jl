@@ -78,7 +78,7 @@ function mul!(z::Vector{T}, x::Vector{T}, y::Vector{T}) where T <: Unsigned
     ly = length(y)
 
     fill!(z, zero(T))
-    x2 = deepcopy(x)
+    x2 = Array{T}(undef, length(x))
 
     i = 0
     @inbounds while i < ly
