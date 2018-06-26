@@ -1,25 +1,34 @@
 module UArrayInts
+export UArrayInt, add_carry, mul_carry, add!, mul!, to_unsigned
 
 """
 Must be indexable and each element should be an unsigned type.
 """
-abstract type UArrayInt end
+struct UArrayInt{T}
+    data::Array{T}
+end
+
+Base.getindex(x::UArrayInt{T}, i) where T = getindex(x.data, i)
+Base.setindex!(x::UArrayInt{T}, i, y) where T = setindex!(x.data, i, y)
+Base.lastindex(x::UArrayInt{T}) where T = lastindex(x.data)
+Base.length(x::UArrayInt{T}) where T = length(x.data)
 
 """
 multiply x and y, return the result and carry.
 """
-function add_carry(x::T, y::T) where T <: Unsigned
+function add_carry(x::T, y::T) where T
     lower = x + y
     upper = lower < x ? T(1) : T(0)
     return lower, upper
 end
+add_carry(x::UArrayInt{T}, y::UArrayInt{T}) where T = add_carry(x.data, y.data)
 
 """
 calculate x + y and save the result in x, x and y must be a vectors of
 unsigned types, they are little endian, i.e. the least significant entry
 is the last.
 """
-function add!(x::Vector{T}, y::Vector{T}, yexp = 0) where T <: Unsigned
+function add!(x::Vector{T}, y::Vector{T}, yexp = 0) where T
     l = length(x) - 1
 
     carry = T(0)
@@ -32,7 +41,8 @@ function add!(x::Vector{T}, y::Vector{T}, yexp = 0) where T <: Unsigned
 
         if iy > 0 && iy < length(y) + 1
             x[ix], carry1 = add_carry(x[ix], y[iy])
-            # this should be impossible to overflow e.g. 9999 + 9999 carry never overflows
+            # this should be impossible to overflow
+            # e.g. 9999 + 9999 carry never overflows
             carry += carry1
         end
 
@@ -41,16 +51,19 @@ function add!(x::Vector{T}, y::Vector{T}, yexp = 0) where T <: Unsigned
 
     return x
 end
+add!(x::UArrayInt{T}, y::UArrayInt{T}) where T = add!(x.data, y.data)
 
 # I am unhappy about casting this to a larger type, but I see no way around this
 # apart from doing repeated additions which would be awfully slow.
 function mul_carry(x::T, y::T) where T
     T2 = tp(sizeof(T) * 2)
-    res = T2(x) * y # TODO: check if this uses the UInt64 * UInt64 -> UInt128 instructions
+    res = T2(x) * y # TODO: check if this uses the UInt64 * UInt64 -> UInt128
+                    # instructions
     lower = res % T
     upper = (res >> (sizeof(T) * 8)) % T
     return lower, upper
 end
+mul_carry(x::UArrayInt{T}, y::UArrayInt{T}) where T = mul_carry(x.data, y.data)
 
 function mul!(x::Vector{T}, y::T) where T <: Unsigned
     l = length(x) - 1
@@ -70,6 +83,7 @@ function mul!(x::Vector{T}, y::T) where T <: Unsigned
 
     return x
 end
+mul!(x::UArrayInt{T}, y::T) where T = mul!(x.data, y)
 
 """
 TODO:  is there a way to save the result directly in x?
@@ -86,13 +100,16 @@ function mul!(z::Vector{T}, x::Vector{T}, y::Vector{T}) where T <: Unsigned
 
         unsafe_copyto!(x2, 1, x, 1, length(x))
         mul!(x2, y[iy])
-        add!(z, x2, i)        
+        add!(z, x2, i)
 
         i += 1
     end
 
+
     return z
 end
+mul!(x::UArrayInt{T}, y::UArrayInt{T}, z::UArrayInt{T}) where T =
+    mul!(x.data, y.data, z.data)
 
 function tp(x)
     if     x == 1  UInt8
@@ -118,49 +135,7 @@ end
     return ex
 end
 
-to_unsigned(x) = to_unsigned(x, Val(length(x)))
+to_unsigned(x::Array{T}) where T = to_unsigned(x, Val(length(x)))
+to_unsigned(x::UArrayInt{T}) where T = to_unsigned(x.data)
 
-#=
-function Base.bswap(x::UInt256)
-    reinterpret(UInt256, reinterpret(UInt8, UInt256[x])[end:-1:1])[1]
-end
-
-function Base.zero(x::UInt256)
-    reinterpret(UInt256, zeros(UInt8, 32))[1]
-end
-
-function Base.zero(::Type{UInt256})
-    reinterpret(UInt256, zeros(UInt8, 32))[1]
-end
-
-
-# this one takes ~ 2x as long
-# function Base.bswap(x::UInt256)
-#     convert(UInt256, convert(NTuple{32, UInt8}, x)[end:-1:1])
-# end
-
-# TODO: this is probably not good:
-Base.hash(x::UInt256, h::UInt) = Base.hash(x % UInt64, h)
-Base.hash(x::UInt256) = Base.hash(x, zero(UInt))
-
-# Base.rem(x::UInt256, ::Type{T}) where T = reinterpret(T,  Int256[x])[1]
-function Base.rem(x::UInt256, ::Type{T}) where T
-    Ref(x) |>
-        pointer_from_objref |>
-        x -> convert(Ptr{T}, x) |>
-        unsafe_load
-end
-
-function UInt256(x::AbstractString)
-    n = length(x)
-    @assert n <= 64
-    if n <= 32
-        to_unsigned(UInt256, (Base.parse(UInt128, x, 16), zero(UInt128)))
-    else
-        to_unsigned(UInt256,
-                    (Base.parse(UInt128, String(x[end - 31:end]),      16),
-                     Base.parse(UInt128, String(x[       1:end - 32]), 16)) )
-    end
-end
-=#
 end # module
