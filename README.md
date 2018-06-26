@@ -1,4 +1,4 @@
-# Ripemd
+# UArrayInts.jl
 
 [![Build Status](https://travis-ci.org/gdkrmr/UArrayInts.jl.svg?branch=master)](https://travis-ci.org/gdkrmr/UArrayInts.jl)
 [![codecov.io](http://codecov.io/github/gdkrmr/UArrayInts.jl/coverage.svg?branch=master)](http://codecov.io/github/gdkrmr/UArrayInts.jl?branch=master)
